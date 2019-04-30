@@ -14,7 +14,7 @@ import android.app.Activity;
 
 public class MainActivity extends Activity implements AdvancedWebView.Listener {
 
-	private static final String TEST_PAGE_URL = "https://www.example.org/";
+	private static final String TEST_PAGE_URL = "http://healing.mint-soft.com/html/";
 	private AdvancedWebView mWebView;
 
 	@Override
