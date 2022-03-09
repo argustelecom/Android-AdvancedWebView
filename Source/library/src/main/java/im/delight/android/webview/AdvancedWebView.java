@@ -305,7 +305,7 @@ public class AdvancedWebView extends WebView {
 		//file from library
 		if (requestCode == mRequestCodeFilePicker) {
 			if (resultCode == Activity.RESULT_OK) {
-				if (intent != null) {
+				if (intent != null && intent.getData() != null) {
 					if (mFileUploadCallbackFirst != null) {
 						mFileUploadCallbackFirst.onReceiveValue(intent.getData());
 						mFileUploadCallbackFirst = null;
@@ -739,7 +739,7 @@ public class AdvancedWebView extends WebView {
 			@SuppressLint("NewApi")
 			@SuppressWarnings("all")
 			public void onUnhandledInputEvent(WebView view, InputEvent event) {
-				if (Build.VERSION.SDK_INT >= 21) {
+				if (Build.VERSION.SDK_INT >= 21 && Build.VERSION.SDK_INT <= 23) {
 					if (mCustomWebViewClient != null) {
 						mCustomWebViewClient.onUnhandledInputEvent(view, event);
 					} else {
