@@ -2,13 +2,20 @@ apply plugin: 'com.android.library'
 apply plugin: 'com.github.dcendents.android-maven'
 
 android {
-	compileSdkVersion 21
+	//https://github.com/delight-im/Android-AdvancedWebView/issues/83
+	compileSdkVersion 23
 	buildToolsVersion '26.0.2'
 
 	defaultConfig {
 		minSdkVersion 8
-		targetSdkVersion 21
+		targetSdkVersion 23
 	}
+
+	lintOptions {
+		//  Error: Google Play requires that apps target API level 26 or higher.
+		abortOnError false
+	}
+
 
 	buildTypes {
 		release {
