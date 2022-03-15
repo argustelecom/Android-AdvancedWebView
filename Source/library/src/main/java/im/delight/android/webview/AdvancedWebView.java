@@ -6,11 +6,8 @@ package im.delight.android.webview;
  * Licensed under the MIT License (https://opensource.org/licenses/MIT)
  */
 
-import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
-import android.content.DialogInterface;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.view.ViewGroup;
 import android.app.DownloadManager;
 import android.app.DownloadManager.Request;
@@ -18,9 +15,7 @@ import android.os.Environment;
 import android.webkit.CookieManager;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 
 import android.content.pm.ApplicationInfo;
@@ -88,6 +83,16 @@ public class AdvancedWebView extends WebView {
 		void onDownloadRequested(String url, String suggestedFilename, String mimeType, long contentLength, String contentDisposition, String userAgent);
 
 		void onExternalPageRequest(String url);
+
+		/**
+		 * Called before show file input. This is called to handle HTML forms with 'file' input type,
+		 * in response to the user pressing the "Select File" button.
+		 * To cancel the request, call fileInput.cancel and return true.
+		 *
+		 * @param fileInput
+		 * @return true if fileInput.open will be invoked, false to use default handling.
+		 */
+		boolean onOpenFileInput(FileInput fileInput);
 	}
 
 	public static final String PACKAGE_NAME_DOWNLOAD_MANAGER = "com.android.providers.downloads";
@@ -1275,53 +1280,90 @@ public class AdvancedWebView extends WebView {
 		return new File(mediaStorageDir.getPath() + File.separator + "VIDEO_" + timeStamp + ".mp4");
 	}
 
-	@SuppressLint("NewApi")
-	protected void openFileInput(final ValueCallback<Uri> fileUploadCallbackFirst, final ValueCallback<Uri[]> fileUploadCallbackSecond, final boolean allowMultiple) {
-		if (mFileUploadCallbackFirst != null) {
-			mFileUploadCallbackFirst.onReceiveValue(null);
-		}
-		mFileUploadCallbackFirst = fileUploadCallbackFirst;
+	protected void openFileInput(final ValueCallback<Uri> fileUploadCallbackFirst,
+			final ValueCallback<Uri[]> fileUploadCallbackSecond, final boolean allowMultiple){
+		FileInput fileInput = new FileInput(fileUploadCallbackFirst, fileUploadCallbackSecond, allowMultiple);
+		boolean shouldOpenNow = mListener == null || !mListener.onOpenFileInput(fileInput);
+		shouldOpenNow = shouldOpenNow && !fileInput.isCanceled();
 
-		if (mFileUploadCallbackSecond != null) {
-			mFileUploadCallbackSecond.onReceiveValue(null);
-		}
-		mFileUploadCallbackSecond = fileUploadCallbackSecond;
-
-		Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
-
-		//image camera
-		Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-		imageUri = Uri.fromFile(getOutputImageFile());
-		takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
-
-		//video camera
-		Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
-		videoUri = Uri.fromFile(getOutputVideoFile());
-		takeVideoIntent.putExtra(MediaStore.EXTRA_OUTPUT, videoUri);
-
-		//select file
-		Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
-		contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
-
-		if (allowMultiple) {
-			if (Build.VERSION.SDK_INT >= 18) {
-				contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-			}
-		}
-		contentSelectionIntent.setType(mUploadableFileTypes);
-
-		//choose intent
-		Intent[] intentArray = new Intent[]{takePictureIntent,takeVideoIntent};
-		chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
-		chooserIntent.putExtra(Intent.EXTRA_TITLE, getFileUploadPromptLabel());
-		chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
-
-		if (mFragment != null && mFragment.get() != null && Build.VERSION.SDK_INT >= 11) {
-			mFragment.get().startActivityForResult(chooserIntent, mRequestCodeFilePicker);
-		} else if (mActivity != null && mActivity.get() != null) {
-			mActivity.get().startActivityForResult(chooserIntent, mRequestCodeFilePicker);
+		if (shouldOpenNow) {
+			fileInput.open();
 		}
 	}
+
+	public class FileInput{
+		private final ValueCallback<Uri> fileUploadCallbackFirst;
+		private final ValueCallback<Uri[]> fileUploadCallbackSecond;
+		private final boolean allowMultiple;
+		private boolean canceled;
+
+		private FileInput(ValueCallback<Uri> fileUploadCallbackFirst,
+				ValueCallback<Uri[]> fileUploadCallbackSecond, boolean allowMultiple) {
+			this.fileUploadCallbackFirst = fileUploadCallbackFirst;
+			this.fileUploadCallbackSecond = fileUploadCallbackSecond;
+			this.allowMultiple = allowMultiple;
+		}
+
+		@SuppressLint("NewApi")
+		public void open() {
+			if (mFileUploadCallbackFirst != null) {
+				mFileUploadCallbackFirst.onReceiveValue(null);
+			}
+			mFileUploadCallbackFirst = fileUploadCallbackFirst;
+
+			if (mFileUploadCallbackSecond != null) {
+				mFileUploadCallbackSecond.onReceiveValue(null);
+			}
+			mFileUploadCallbackSecond = fileUploadCallbackSecond;
+
+			Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+
+			//image camera
+			Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+			imageUri = Uri.fromFile(getOutputImageFile());
+			takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+
+			//video camera
+			Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+			videoUri = Uri.fromFile(getOutputVideoFile());
+			takeVideoIntent.putExtra(MediaStore.EXTRA_OUTPUT, videoUri);
+
+			//select file
+			Intent contentSelectionIntent = new Intent(Intent.ACTION_GET_CONTENT);
+			contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+
+			if (allowMultiple) {
+				if (Build.VERSION.SDK_INT >= 18) {
+					contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+				}
+			}
+			contentSelectionIntent.setType(mUploadableFileTypes);
+
+			//choose intent
+			Intent[] intentArray = new Intent[]{takePictureIntent,takeVideoIntent};
+			chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+			chooserIntent.putExtra(Intent.EXTRA_TITLE, getFileUploadPromptLabel());
+			chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+
+			if (mFragment != null && mFragment.get() != null && Build.VERSION.SDK_INT >= 11) {
+				mFragment.get().startActivityForResult(chooserIntent, mRequestCodeFilePicker);
+			} else if (mActivity != null && mActivity.get() != null) {
+				mActivity.get().startActivityForResult(chooserIntent, mRequestCodeFilePicker);
+			}
+		}
+
+		public void cancel(){
+			if (!canceled){
+				fileUploadCallbackSecond.onReceiveValue(null);
+				canceled = true;
+			}
+		}
+
+		private boolean isCanceled(){
+			return canceled;
+		}
+	}
+
 
 	/**
 	 * Returns whether file uploads can be used on the current device (generally all platform versions except for 4.4)

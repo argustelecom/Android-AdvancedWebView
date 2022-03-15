@@ -118,4 +118,8 @@ public class MainActivity extends Activity implements AdvancedWebView.Listener {
 		Toast.makeText(MainActivity.this, "onExternalPageRequest(url = "+url+")", Toast.LENGTH_SHORT).show();
 	}
 
+	@Override
+	public boolean onOpenFileInput(AdvancedWebView.FileInput fileInput) {
+		return false;
+	}
 }
