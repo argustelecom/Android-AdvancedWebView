@@ -1,4 +1,4 @@
-package im.delight.android.webview.impl;
+package im.delight.android.webview.download;
 
 import android.webkit.URLUtil;
 

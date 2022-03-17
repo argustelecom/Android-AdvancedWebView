@@ -269,7 +269,7 @@ If you want to serve sites or just single resources over plain `http` instead of
        // some file is available for download
        // either handle the download yourself or use the code below
 
-       if (AdvancedWebView.handleDownload(this, url, suggestedFilename)) {
+       if (AdvancedWebView.handleDownload(url, suggestedFilename)) {
            // download successfully handled
        }
        else {

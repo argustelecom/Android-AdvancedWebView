@@ -1,6 +1,8 @@
 package im.delight.android.examples.webview;
 
 import im.delight.android.webview.AdvancedWebView;
+import im.delight.android.webview.download.CompletedDownload;
+
 import android.webkit.WebChromeClient;
 import android.widget.Toast;
 import android.webkit.WebView;
@@ -111,6 +113,17 @@ public class MainActivity extends Activity implements AdvancedWebView.Listener {
 		else {
 			// download couldn't be handled because user has disabled download manager app on the device
 		}*/
+	}
+
+	@Override
+	public void onDownloadHandled(CompletedDownload download) {
+		/*
+		if (download.isSuccess()) {
+			// download successfully completed
+		}else{
+			// failed with download.getFailReason()
+		}
+		*/
 	}
 
 	@Override

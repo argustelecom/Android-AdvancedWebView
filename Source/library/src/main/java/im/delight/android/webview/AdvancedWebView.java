@@ -9,8 +9,6 @@ package im.delight.android.webview;
 import android.content.ActivityNotFoundException;
 import android.provider.MediaStore;
 import android.view.ViewGroup;
-import android.app.DownloadManager;
-import android.app.DownloadManager.Request;
 import android.os.Environment;
 import android.webkit.CookieManager;
 
@@ -66,7 +64,9 @@ import java.io.UnsupportedEncodingException;
 import java.lang.ref.WeakReference;
 import java.util.Map;
 
-import im.delight.android.webview.impl.AdvancedURLUtil;
+import im.delight.android.webview.download.SimpleDownloadManager;
+import im.delight.android.webview.download.AdvancedURLUtil;
+import im.delight.android.webview.download.CompletedDownload;
 
 /**
  * Advanced WebView component for Android that works as intended out of the box
@@ -82,6 +82,13 @@ public class AdvancedWebView extends WebView {
 		void onPageError(int errorCode, String description, String failingUrl);
 
 		void onDownloadRequested(String url, String suggestedFilename, String mimeType, long contentLength, String contentDisposition, String userAgent);
+
+		/**
+		 * Called after completion of download, scheduled with <code>handleDownload</code>.
+		 *
+		 * @param download info about successful or failed download.
+		 */
+		void onDownloadHandled(CompletedDownload download);
 
 		void onExternalPageRequest(String url);
 
@@ -129,6 +136,7 @@ public class AdvancedWebView extends WebView {
 
 	private Uri imageUri;
 	private Uri videoUri;
+	private SimpleDownloadManager downloadManager;
 
 
 	public AdvancedWebView(Context context) {
@@ -293,6 +301,13 @@ public class AdvancedWebView extends WebView {
 		} catch (Exception ignored) {
 		}
 
+		try{
+			if (downloadManager != null){
+				downloadManager.destroy();
+			}
+		}catch (Exception ignored) {
+		}
+
 		// and finally destroy this view
 		destroy();
 	}
@@ -382,7 +397,7 @@ public class AdvancedWebView extends WebView {
 				setFileUploadInit();
 			}
 		}
-		 else {
+		else {
 			setFileUploadInit();
 		}
 	}
@@ -1072,6 +1087,14 @@ public class AdvancedWebView extends WebView {
 			}
 
 		});
+		downloadManager = new SimpleDownloadManager( getContext(), new SimpleDownloadManager.Listener(){
+			@Override
+			public void onDownloadFinish(CompletedDownload downloadInfo){
+				if (mListener != null) {
+					mListener.onDownloadHandled(downloadInfo);
+				}
+			}
+		});
 	}
 
 	@Override
@@ -1401,15 +1424,14 @@ public class AdvancedWebView extends WebView {
 	 * <p>
 	 * Only supported on API level 9 (Android 2.3) and above
 	 *
-	 * @param context    a valid `Context` reference
 	 * @param fromUrl    the URL of the file to download, e.g. the one from `AdvancedWebView.onDownloadRequested(...)`
 	 * @param toFilename the name of the destination file where the download should be saved, e.g. `myImage.jpg`
-	 * @return whether the download has been successfully scheduled or not
+	 * @return whether the download has been successfully handled or not
 	 * @throws IllegalStateException if the storage or the target directory could not be found or accessed
 	 */
 	@SuppressLint("NewApi")
-	public static boolean handleDownload(final Context context, final String fromUrl, final String toFilename){
-		return handleDownload(context, fromUrl, toFilename, null);
+	public boolean handleDownload(final String fromUrl, final String toFilename){
+		return handleDownload(fromUrl, toFilename, null);
 	}
 
 	/**
@@ -1419,54 +1441,29 @@ public class AdvancedWebView extends WebView {
 	 * <p>
 	 * Only supported on API level 9 (Android 2.3) and above
 	 *
-	 * @param context    a valid `Context` reference
 	 * @param fromUrl    the URL of the file to download, e.g. the one from `AdvancedWebView.onDownloadRequested(...)`
 	 * @param toFilename the name of the destination file where the download should be saved, e.g. `myImage.jpg`
 	 * @param requestHeaders the headers for http request. Basic authorization for example.
-	 * @return whether the download has been successfully scheduled or not
+	 * @return id of scheduled DownloadManager.Request. Null if the download manager app has been disabled on the device
 	 * @throws IllegalStateException if the storage or the target directory could not be found or accessed
 	 */
 	@SuppressLint("NewApi")
-	public static boolean handleDownload(final Context context, final String fromUrl, final String toFilename,
-				Map<String, String> requestHeaders) {
+	public boolean handleDownload(final String fromUrl, final String toFilename,
+			Map<String, String> requestHeaders) {
 		if (Build.VERSION.SDK_INT < 9) {
 			throw new RuntimeException("Method requires API level 9 or above");
 		}
 
-		final Request request = new Request(Uri.parse(fromUrl));
-		if (requestHeaders != null){
-			for(Map.Entry<String, String> header: requestHeaders.entrySet()){
-				request.addRequestHeader(header.getKey(), header.getValue());
-			}
-		}
-		if (Build.VERSION.SDK_INT >= 11) {
-			request.allowScanningByMediaScanner();
-			request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-		}
-		request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, toFilename);
-		request.setTitle(toFilename);
-
-		final DownloadManager dm = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
 		try {
-			try {
-				dm.enqueue(request);
-			} catch (SecurityException e) {
-				if (Build.VERSION.SDK_INT >= 11) {
-					request.setNotificationVisibility(Request.VISIBILITY_VISIBLE);
-				}
-				dm.enqueue(request);
-			}
-
+			downloadManager.enqueue(fromUrl, toFilename, requestHeaders);
 			return true;
 		}
 		// if the download manager app has been disabled on the device
-		catch (IllegalArgumentException e) {
+		catch (SimpleDownloadManager.SystemServiceDisabledException e) {
 			// show the settings screen where the user can enable the download manager app again
-			openAppSettings(context, AdvancedWebView.PACKAGE_NAME_DOWNLOAD_MANAGER);
-
+			openAppSettings(getContext(), AdvancedWebView.PACKAGE_NAME_DOWNLOAD_MANAGER);
 			return false;
 		}
-
 	}
 
 	@SuppressLint("NewApi")
