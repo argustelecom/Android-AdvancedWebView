@@ -138,6 +138,17 @@ public class AdvancedWebView extends WebView {
 	private Uri videoUri;
 	private SimpleDownloadManager downloadManager;
 
+	private long lastRequestTime = System.currentTimeMillis();
+
+	public long getLastRequestTime()
+	{
+		return lastRequestTime;
+	}
+
+	public void refreshLastRequestTime()
+	{
+		this.lastRequestTime = System.currentTimeMillis();
+	}
 
 	public AdvancedWebView(Context context) {
 		super(context);
@@ -1099,6 +1110,8 @@ public class AdvancedWebView extends WebView {
 
 	@Override
 	public void loadUrl(final String url, Map<String, String> additionalHttpHeaders) {
+		refreshLastRequestTime();
+
 		if (additionalHttpHeaders == null) {
 			additionalHttpHeaders = mHttpHeaders;
 		} else if (mHttpHeaders.size() > 0) {
@@ -1110,6 +1123,8 @@ public class AdvancedWebView extends WebView {
 
 	@Override
 	public void loadUrl(final String url) {
+		refreshLastRequestTime();
+
 		if (mHttpHeaders.size() > 0) {
 			super.loadUrl(url, mHttpHeaders);
 		} else {
