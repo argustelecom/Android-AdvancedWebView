@@ -1,8 +1,8 @@
 Как релизить новую версию
 1. Поднять версию в source/gradle.properties
    Версия строится как Версия AndroidWebView + TASK по которому поднимается (пример: Android-AdvancedWebView:3.2.1.TASK-123456)
-2. gradlew.bat assemble publishToMavenLocal
-   Выложит в корпоративный репозиторий
+2. gradlew.bat assemble publishToMavenLocal artifactoryPublish
+   Выложит в корпоративный репозиторий (artifactoryPublish)
 3. Поднять версию зависимости на стороне приложения
 
 # AdvancedWebView
